@@ -34,6 +34,24 @@ def compare_word(actual, guess, current_known, words):
 		elif slots_guess[i] == slots[i]:
 			current_known.letters[i] = [slots_guess[i]]
 
+def deduce_word(guess, result, current_known, words):
+	for r in range(0,5):
+		if result[r] == '1':
+			current_known.letters[r] = [guess[r]]
+		elif result[r] == '2':
+			try:
+				current_known.letters[r].remove(guess[r])
+			except:
+				pass
+			words.POTENT.add(guess[r])
+		else:
+			for i in range(0,5):
+				try:
+					current_known.letters[i].remove(guess[r])
+				except:
+					pass
+			words.WRONG.add(guess[r])
+
 def pick_next_word(current_guess, words):
 	
 	for word in words.WORDS:
@@ -46,48 +64,61 @@ def pick_next_word(current_guess, words):
 		# Now we say that if we know a letter doesn't go somewhere
 		# then we discard that word and try the next one
 		for i, letter in enumerate(word):
-			if len(words.POTENT) < 2:
-				if letter in words.POTENT:
-					usable = False
-					continue
-
-			elif letter not in current_guess.letters[i]:
+			if letter not in current_guess.letters[i]:
 				usable = False
-				continue
+				break
 		
 		if not usable:
 			words.WORDS.remove(word)
 		else:
 			return word
 			
-	return words.WORDS[0] # should only hit this if we've failed miserably
+	return random.choice(words.WORDS) # should only hit this if we've failed miserably
 
 def run_sample(test_word, words, scoring):
 	guess_values = guessable_word()
 	scoring.load_stats('scores')
 	chosen = ''
-	for i in range(0,20):
-		if i == 0:
-			chosen = 'adieu'
-		else:
-			chosen = pick_next_word(guess_values, words)
-			words.WORDS = sorted(words.WORDS, key=lambda x: scoring.get_word_score(x, guess_values, words.POTENT, words.WRONG), reverse=True)
+	for i in range(0,6):
+		chosen = pick_next_word(guess_values, words)
+		words.WORDS = sorted(words.WORDS, key=lambda x: scoring.get_word_score(x, guess_values, words.POTENT, words.WRONG), reverse=True)
 
 		words.GUESSED.append(chosen)
 		if chosen == test_word:
-			print("** %s **" %chosen)
+			print("** %s **" % chosen)
 			return i+1
 		
 		compare_word(test_word, chosen, guess_values, words)
 	print (chosen, test_word)
 	return 7
 
-if __name__ == '__main__':
+def run_live():
+	words = wording()
+	scores = scoring()
+	scores.load_stats('scores')
+	guess_values = guessable_word()
+	
+	for i in range(6):
+		words.WORDS = sorted(words.WORDS, key=lambda x: scores.get_word_score(x, guess_values, words.POTENT, words.WRONG), reverse=True)
+		guess = pick_next_word(guess_values, words)
+		print("Try this:", guess)
+		result = input("[0=Grey][1=Green][2=Yellow]: ")
+		if result == 'q':
+			return 0
+		deduce_word(guess, result, guess_values, words)
+		words.GUESSED.append(guess)
+		
+		print()
+
+def stat_run():
 	res = []
 	g = wording()
 	s = scoring()
-	for i in range(0,1000):
+	for i in range(0,100):
 		g.reset_guesses()
 		res.append(run_sample(random.choice(g.WORDS), g, s))
 	pp.hist(res, len(set(res)))
 	pp.show()
+
+if __name__ == '__main__':
+	run_live()

@@ -24,17 +24,16 @@ class scoring:
 		f.close()
 
 	def get_word_score(self, word, current_guess, POTENT, WRONG):
-		letters = list(word)
-		score = sum([self.STATS[letter] for letter in letters])
+		score = sum([self.STATS[letter] for letter in word])
 		
-		score *= len(set(letters))  # unique letters score more
+		score *= len(set(word))  # unique letters score more
 			
-		if any(l in letters for l in POTENT):
-			score *= 5
-		if any(l in letters for l in WRONG):
-			score = 0
-		for possibilities in current_guess.letters:
-			if any(l not in possibilities for l in word):
-				score = 0
+		if any(l in word for l in POTENT):
+			score *= 1000  # potential letters score more
+		if any(l in word for l in WRONG):
+			return 0
+		for i in range(len(word)):
+			if word[i] not in current_guess.letters[i]:
+				return 0
 
 		return score
