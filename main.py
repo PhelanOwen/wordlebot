@@ -1,6 +1,5 @@
-from operator import indexOf
 import random
-from matplotlib import pyplot as pp
+# from matplotlib import pyplot as pp
 from scoring import scoring
 from wording import wording
 
@@ -117,8 +116,8 @@ def stat_run():
 	for i in range(0,100):
 		g.reset_guesses()
 		res.append(run_sample(random.choice(g.WORDS), g, s))
-	pp.hist(res, len(set(res)))
-	pp.show()
+	# pp.hist(res, len(set(res)))
+	# pp.show()
 
 if __name__ == '__main__':
 	run_live()
