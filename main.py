@@ -1,78 +1,93 @@
-import pickle
+from operator import indexOf
 import random
+from matplotlib import pyplot as pp
+from scoring import scoring
+from wording import wording
 
 STATS = {}
-WORDS = [w.strip() for w in open('word_list.txt', 'r').readlines()]
-WRONG = []
-POTENT= []
+SIZE_BEFORE_COMMITTING = 3
 
 class guessable_word:
-    letters = [list('abcdefghijklmnopqrstuvwxyz') for i in range(0,5)]
+	def __init__(self):
+		self.letters = [list('abcdefghijklmnopqrstuvwxyz') for i in range(0,5)]
 
-def calculate_scores(picklefile):
-    global STATS, WORDS
-    STATS = {}
-    words = WORDS
-    for word in words:
-        for letter in word:
-            try:
-                STATS[letter] += 1
-            except:
-                STATS[letter] = 1
-    f = open(picklefile, 'wb')
-    pickle.dump(STATS, f)
-    f.close()
-    
-def load_stats(picklefile):
-    global STATS
-    f = open(picklefile, 'rb')
-    STATS = pickle.load(f)
-    f.close()
+def compare_word(actual, guess, current_known, words):
+	slots = list(actual)
+	slots_guess = list(guess)
+	for i in range(0,5):
+		# Letter is not in actual word at all
+		if slots_guess[i] not in actual:
+			for possible in current_known.letters:
+				try:
+					possible.remove(slots_guess[i])
+				except:  # got it right the first time
+					pass
+				words.WRONG.add(slots_guess[i])
+		# letter is in word, but not in correct place
+		elif slots_guess[i] in slots and slots[i] != slots_guess[i]:
+			words.POTENT.add(slots_guess[i])
+			try:
+				current_known.letters[i].remove(slots_guess[i])
+			except:
+				pass
+		# letter is in correct place
+		elif slots_guess[i] == slots[i]:
+			current_known.letters[i] = [slots_guess[i]]
 
-def get_word_score(word):
-    global STATS, WRONG
-    letters = list(word)
-    score = sum([STATS[letter] for letter in letters])
-    if len(set(letters)) == len(letters):  # score more if we pick words without duplicates
-        score *= 2
-    if any(l in word for l in POTENT):
-        score *= 2
-    if any(l in word for l in WRONG):
-        score *= -1
-    return score
+def pick_next_word(current_guess, words):
+	
+	for word in words.WORDS:
+		usable = True  # assume the next word is usable
+		
+		if word in words.GUESSED:
+			usable = False
+			continue
+		
+		# Now we say that if we know a letter doesn't go somewhere
+		# then we discard that word and try the next one
+		for i, letter in enumerate(word):
+			if len(words.POTENT) < 2:
+				if letter in words.POTENT:
+					usable = False
+					continue
 
-def compare_word(actual, guess, current_known):
-    global WRONG, POTENT
-    slots = list(actual)
-    slots_guess = list(guess)
-    for i in range(0,5):
-        # Letter is not in actual word at all
-        if slots_guess[i] not in actual:
-            for possible in current_known.letters:
-                try:
-                    possible.remove(slots_guess[i])
-                except:  # got it right the first time
-                    pass
-                WRONG.append(slots_guess[i])
-        # letter is in word, but not in correct place
-        if slots_guess[i] in slots and slots[i] != slots_guess[i]:
-            try:
-                current_known.letters[i].remove(slots_guess[i])
-            except:
-                pass
-            POTENT.append(slots_guess[i])
-        # letter is in correct place
-        if slots_guess[i] == slots[i]:
-            current_known.letters[i] = [slots_guess[i]]
+			elif letter not in current_guess.letters[i]:
+				usable = False
+				continue
+		
+		if not usable:
+			words.WORDS.remove(word)
+		else:
+			return word
+			
+	return words.WORDS[0] # should only hit this if we've failed miserably
 
+def run_sample(test_word, words, scoring):
+	guess_values = guessable_word()
+	scoring.load_stats('scores')
+	chosen = ''
+	for i in range(0,20):
+		if i == 0:
+			chosen = 'adieu'
+		else:
+			chosen = pick_next_word(guess_values, words)
+			words.WORDS = sorted(words.WORDS, key=lambda x: scoring.get_word_score(x, guess_values, words.POTENT, words.WRONG), reverse=True)
 
-test = "prime"
+		words.GUESSED.append(chosen)
+		if chosen == test_word:
+			print("** %s **" %chosen)
+			return i+1
+		
+		compare_word(test_word, chosen, guess_values, words)
+	print (chosen, test_word)
+	return 7
 
 if __name__ == '__main__':
-    guess_values = guessable_word()
-    load_stats('scores')
-    for i in range(0,6):
-        WORDS = sorted(WORDS, key=lambda x: get_word_score(x), reverse=True)
-        chosen = random.choice(WORDS[0: max(1, 5-(i*2))])
-        print(chosen)
-        compare_word(test, chosen, guess_values)
+	res = []
+	g = wording()
+	s = scoring()
+	for i in range(0,1000):
+		g.reset_guesses()
+		res.append(run_sample(random.choice(g.WORDS), g, s))
+	pp.hist(res, len(set(res)))
+	pp.show()
